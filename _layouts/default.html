@@ -1,3 +1,6 @@
+---
+root: https://atmin.github.io/jtmpl.com
+---
 <!DOCTYPE html>
 <html>
 <head>
@@ -6,10 +9,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{ site.title_tag_text }}</title>
   <link href='//fonts.googleapis.com/css?family=Roboto:400,400italic,700' rel='stylesheet' type='text/css'>
-  <link rel="stylesheet" href="css/normalize.css">
-  <link rel="stylesheet" href="css/syntax.css">
-  <link rel="stylesheet" href="css/solo.css">
-  <link rel="stylesheet" href="css/jtmpl.css">
+  <link rel="stylesheet" href="{{ page.root }}/css/normalize.css">
+  <link rel="stylesheet" href="{{ page.root }}/css/syntax.css">
+  <link rel="stylesheet" href="{{ page.root }}/css/solo.css">
+  <link rel="stylesheet" href="{{ page.root }}/css/jtmpl.css">
 {% include head.html %}
 </head>
 <body>
