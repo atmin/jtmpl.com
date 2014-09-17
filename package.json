@@ -1,0 +1,19 @@
+{
+  "name": "jtmpl.com",
+  "version": "0.0.0",
+  "description": "jtmpl.com",
+  "main": "index.js",
+  "directories": {
+    "example": "examples"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/atmin/jtmpl.com"
+  },
+  "author": "Atanas Minev",
+  "license": "CC BY-SA",
+  "bugs": {
+    "url": "https://github.com/atmin/jtmpl.com/issues"
+  },
+  "homepage": "https://github.com/atmin/jtmpl.com"
+}
