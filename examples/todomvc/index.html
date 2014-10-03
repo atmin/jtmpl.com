@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>jtmpl • TodoMVC</title>
+    <link rel="stylesheet" href="bower_components/todomvc-common/base.css">
+    <style>
+      .hidden { display: none }
+    </style>
+  </head>
+  <body>
+    <section id="todoapp" data-jtmpl="#todoapp-template">
+    </section>
+
+    <script id="todoapp-template" type="text/template" data-model="js/app.js">
+      <header id="header">
+        <h1>todos</h1>
+        <input id="new-todo" placeholder="What needs to be done?" autofocus value="{{todo}}">
+      </header>
+
+      <section id="main">
+        <div class="{{^todosLength}}hidden{{/}}">
+          <input id="toggle-all" type="checkbox" checked="{{toggleAll}}">
+          <label for="toggle-all">Mark all as complete</label>
+        </div>
+        <ul id="todo-list">
+          {{#todos}}
+          <li class="{{#completed}}completed{{/}} {{#_editing}}editing{{/}} {{^filter}}hidden{{/}}">
+            <div class="view">
+              <input class="toggle" type="checkbox" checked="{{completed}}">
+              <label>{{title}}</label>
+              <button class="destroy"></button>
+            </div>
+            <input class="edit" value="{{title}}">
+          </li>
+          {{/}}
+        </ul>
+      </section>
+
+      <footer id="footer" class="{{^todosLength}}hidden{{/}}">
+        <span id="todo-count" class="{{^todosLeft}}hidden{{/}}">
+          <strong>{{todosLeft}}</strong> {{itemText}} left
+        </span>
+
+        <ul id="filters">
+        {{#filters}}
+          <li><a href="{{href}}" class="{{selected}}">{{title}}</a></li>
+        {{/filters}}
+        </ul>
+
+        <span class="{{^completedItemsLength}}hidden{{/}}">
+          <button id="clear-completed">
+            Clear completed ({{completedItemsLength}})</button>
+        </span>
+      </footer>
+    </script>
+
+
+    <footer id="info">
+      <p>Double-click to edit a todo</p>
+      <p>Created by <a href="http://atmin.me">Atanas Minev</a></p>
+      <p>Part of <a href="http://todomvc.com">TodoMVC</a></p>
+    </footer>
+
+    <script src="bower_components/todomvc-common/base.js"></script>
+    <script src="../../node_modules/jtmpl-js/jtmpl.js"></script>
+  </body>
+</html>
