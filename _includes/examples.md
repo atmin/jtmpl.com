@@ -3,7 +3,7 @@
 
 ## Examples
 
-[TodoMVC](examples/todomvc)
+[TodoMVC]({{ page.root }}/examples/todomvc)
 
 
 {% endraw %}
