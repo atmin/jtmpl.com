@@ -18,6 +18,9 @@
         this('filters')(i)('selected', true);
         currentFilter = el.filter;
       }
+      else {
+        this('filters')(i)('selected', false);
+      }
     }, this);
     // Update todo items on route change
     jtmpl('#todoapp').trigger('change', 'todos');
@@ -54,6 +57,11 @@
     jtmpl('#todoapp')('todos', todos);
   }
 
+  function destroy() {
+    var todos = this.root('todos');
+    todos.splice(todos.values.indexOf(this.values), 1);
+  }
+
   // Export template model
   module.exports = {
 
@@ -74,16 +82,19 @@
         },
         '.edit': function(e) {
           if (enterKey(e)) {
-            this('_editing', false);
+            // If todo empty, destroy it
+            if (this('title') === '') {
+              destroy.call(this);
+            }
+            else {
+              this('_editing', false);
+            }
           }
         }
       },
 
       click: {
-        '.destroy': function() {
-          var todos = this.root('todos');
-          todos.splice(todos.values.indexOf(this.values), 1);
-        },
+        '.destroy': destroy,
         '#clear-completed': function() {
           for (var i = this('todos').len - 1; i >= 0; i--) {
             if (this('todos')(i)('completed')) {
@@ -95,6 +106,11 @@
 
       dblclick: {
         '#todo-list label': function() {
+          // Finish any editing
+          this.root('todos').values.map(function(el, i) {
+            this.root('todos')(i)('_editing', false);
+          }, this);
+          // Enter edit mode for current todo
           this('_editing', true);
         }
       }
