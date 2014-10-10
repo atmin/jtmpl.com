@@ -23,6 +23,10 @@ approach are now stable.
 
 
 
+### Browser compatibility?
+
+jtmpl is compatible with IE8+ and all modern browsers.
+
 
 
 <h3 id="data-binding"> How is data-binding handled?</h3>
@@ -43,7 +47,6 @@ Model describes the _how_ of the data fields by simple values or functions for d
 `jtmpl` is the glue and doesn't get into your way. It's just a natural generalization of the
 Mustache templating engine into the web applications realm.
 
-Example: [Hello](/#hello)
 
 
 

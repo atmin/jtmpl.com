@@ -85,13 +85,15 @@ function freak(obj, root, parent, prop) {
       }
 
       for (var prop in x) {
-        if (y.hasOwnProperty(prop)) {
-          if (!deepEqual(x[prop], y[prop])) {
+        if (x.hasOwnProperty(prop)) {
+          if (y.hasOwnProperty(prop)) {
+            if (!deepEqual(x[prop], y[prop])) {
+              return false;
+            }
+          }
+          else {
             return false;
           }
-        }
-        else {
-          return false;
         }
       }
 
@@ -163,10 +165,11 @@ function freak(obj, root, parent, prop) {
   // trigger('update', prop)
   // trigger('insert' or 'delete', index, count)
   function trigger(event, a, b) {
-    (listeners[event][['change'].indexOf(event) > -1 ? a : null] || [])
-      .map(function(listener) {
-        listener.call(instance, a, b);
-      });
+    var handlers = (listeners[event][['change'].indexOf(event) > -1 ? a : null] || []);
+    var i, len = handlers.length;
+    for (i = 0; i < len; i++) {
+      handlers[i].call(instance, a, b);
+    };
   }
 
   // Export model to JSON string
@@ -196,18 +199,16 @@ function freak(obj, root, parent, prop) {
       data = JSON.parse(data);
     }
     for (key in data) {
-      obj[key] = data[key];
+      instance(key, data[key]);
+      trigger('update', key);
     }
+    instance.len = obj.length;
   }
 
   // Update handler: recalculate dependent properties,
   // trigger change if necessary
-  function update(prop, innerProp) {
-    // TODO: mark currently updating properties to avoid
-    // stack overflow for circular dependencies and
-    // unnecessary recalculations for computed setters
-
-    if (!deepEqual(cache[prop], get(prop))) {
+  function update(prop) {
+    if (!deepEqual(cache[prop], get(prop, function() {}, true))) {
       trigger('change', prop);
     }
 
@@ -220,7 +221,7 @@ function freak(obj, root, parent, prop) {
 
     if (instance.parent) {
       // Notify computed properties, depending on parent object
-      instance.parent.trigger('update', instance.prop, prop);
+      instance.parent.trigger('update', instance.prop);
     }
   }
 
@@ -237,7 +238,7 @@ function freak(obj, root, parent, prop) {
           context._dependentProps[_prop].push(prop);
           context._dependentContexts[_prop].push(instance);
         }
-        return context(_prop, _arg);
+        return context(_prop, _arg, true);
       }
     }
     var result = tracker(instance);
@@ -249,20 +250,39 @@ function freak(obj, root, parent, prop) {
     return result;
   }
 
-  // Getter for prop, if callback is given
-  // can return async value
-  function get(prop, callback) {
-    var val = obj[prop];
-
-    return cache[prop] = (typeof val === 'function') ?
-      // Computed property
-      val.call(getDependencyTracker(prop), callback) :
-      // Static property (leaf node in the dependency graph)
-      val;
+  // Shallow clone an object
+  function shallowClone(obj) {
+    var key, clone;
+    if (obj && typeof obj === 'object') {
+      clone = {};
+      for (key in obj) {
+        clone[key] = obj[key];
+      }
+    }
+    else {
+      clone = obj;
+    }
+    return clone;
   }
 
-  function getter(prop, callback) {
-    var result = get(prop, callback);
+  // Getter for prop, if callback is given
+  // can return async value
+  function get(prop, callback, skipCaching) {
+    var val = obj[prop];
+    if (typeof val === 'function') {
+      val = val.call(getDependencyTracker(prop), callback);
+      if (!skipCaching) {
+        cache[prop] = (val === undefined) ? val : shallowClone(val);
+      }
+    }
+    else if (!skipCaching) {
+      cache[prop] = val;
+    }
+    return val;
+  }
+
+  function getter(prop, callback, skipCaching) {
+    var result = get(prop, callback, skipCaching);
 
     return result && typeof result === 'object' ?
       // Wrap object
@@ -286,6 +306,7 @@ function freak(obj, root, parent, prop) {
       obj[prop] = val;
       if (val && typeof val === 'object') {
         delete cache[prop];
+        delete children[prop];
       }
     }
 
@@ -295,11 +316,11 @@ function freak(obj, root, parent, prop) {
   }
 
   // Functional accessor, unify getter and setter
-  function accessor(prop, arg) {
+  function accessor(prop, arg, skipCaching) {
     return (
       (arg === undefined || typeof arg === 'function') ?
         getter : setter
-    )(prop, arg);
+    )(prop, arg, skipCaching);
   }
 
   // Attach instance members
@@ -316,6 +337,8 @@ function freak(obj, root, parent, prop) {
       // .trigger(event[, prop])
       trigger: trigger,
       toJSON: toJSON,
+      // Deprecated. It has always been broken, anyway
+      // Will think how to implement properly
       fromJSON: fromJSON,
       // Internal: dependency tracking
       _dependentProps: _dependentProps,
@@ -328,6 +351,8 @@ function freak(obj, root, parent, prop) {
       return function() {
         var result = [][method].apply(obj, arguments);
         this.len = this.values.length;
+        cache = {};
+        children = {};
         func.apply(this, arguments);
         target.parent.trigger('update', target.prop);
         return result;
@@ -349,29 +374,24 @@ function freak(obj, root, parent, prop) {
         }),
 
         reverse: wrapArrayMethod('reverse', function() {
-          cache = {};
           trigger('delete', 0, this.len);
           trigger('insert', 0, this.len);
         }),
 
         shift: wrapArrayMethod('shift', function() {
-          cache = {};
           trigger('delete', 0, 1);
         }),
 
         unshift: wrapArrayMethod('unshift', function() {
-          cache = {};
           trigger('insert', 0, 1);
         }),
 
         sort: wrapArrayMethod('sort', function() {
-          cache = {};
           trigger('delete', 0, this.len);
           trigger('insert', 0, this.len);
         }),
 
         splice: wrapArrayMethod('splice', function() {
-          cache = {};
           if (arguments[1]) {
             trigger('delete', arguments[0], arguments[1]);
           }
@@ -423,7 +443,7 @@ Return documentFragment
       // Utility functions
 
       function escapeRE(s) {
-        return  (s + '').replace(/([.?*+^$[\]\\(){}|-])/g, '\\$1');
+        return (s + '').replace(/([.?*+^$[\]\\(){}|-])/g, '\\$1');
       }
 
 
@@ -467,13 +487,18 @@ Return documentFragment
           ),
           options.delimiters[0] + '&$1' + options.delimiters[1]
         );
-        // wrap each non-attribute tag in HTML comment,
-        // remove Mustache comments,
+        // 1. wrap each non-attribute tag
+        // (that's not inside <select> (fuck you, IE)) in HTML comment
+        // 2. remove Mustache comments
         template = template.replace(
           tokenizer(options, 'g'),
           function(match, match1, pos) {
             var head = template.slice(0, pos);
             var insideTag = !!head.match(RegExp('<' + consts.RE_SRC_IDENTIFIER + '[^>]*?$'));
+            var opening = head.match(/<(select|SELECT)/g);
+            var closing = head.match(/<\/(select|SELECT)/g);
+            var insideSelect =
+                (opening && opening.length || 0) > (closing && closing.length || 0);
             var insideComment = !!head.match(/<!--\s*$/);
             var isMustacheComment = match1.indexOf('!') === 0;
 
@@ -481,9 +506,21 @@ Return documentFragment
               isMustacheComment ?
                 '' :
                 match :
-              '<!--' + match + '-->';
+              insideSelect ?
+                match :
+                '<!--' + match + '-->';
           }
         );
+        // prefix 'selected' and 'checked' attributes with 'jtmpl-'
+        // (to avoid "special" processing, oh IE8)
+        template = template.replace(
+          /(<(?:option|OPTION)[^>]*?)(?:selected|SELECTED)=/g,
+          '$1jtmpl-selected=');
+
+        template = template.replace(
+          /(<(?:input|INPUT)[^>]*?)(?:checked|CHECKED)=/g,
+          '$1jtmpl-checked=');
+
         return template;
       }
 
@@ -504,8 +541,8 @@ Return documentFragment
 
       // Variables
 
-      var i, children, len, ai, alen, attr, val, attrRules, ri, attrVal;
-      var buffer, pos, beginPos, bodyBeginPos, body, node, el, t, match, rule, token, block;
+      var i, children, len, ai, alen, attr, val, attrRules, ri, attrName, attrVal;
+      var buffer, pos, beginPos, bodyBeginPos, body, node, el, contents, t, match, rule, token, block;
       var fragment = document.createDocumentFragment(), frag;
       var freak = _dereq_('freak');
       var iframe;
@@ -533,11 +570,9 @@ Return documentFragment
         iframe = document.createElement('iframe');
         iframe.style.display = 'none';
         document.body.appendChild(iframe);
-        iframe.contentDocument.writeln('<!doctype html>\n<html><body><div>' + template + '</div></body></html>');
-        body = iframe.contentDocument.body.children[0];
+        iframe.contentDocument.writeln('<!doctype html>\n<html><body>' + template + '</body></html>');
+        body = iframe.contentDocument.body;
         document.body.removeChild(iframe);
-        //body = document.createElement('body');
-        //body.innerHTML = template;
       }
 
       // Iterate child nodes.
@@ -563,13 +598,16 @@ Return documentFragment
 
               attr = el.attributes[ai];
               attrRules = [];
+              // Unprefix 'jtmpl-' from attribute name, if needed
+              attrName = attr.name.lastIndexOf('jtmpl-', 0) === 0 ?
+                attr.name.slice('jtmpl-'.length) : attr.name;
               attrVal = '';
               val = attr.value;
               t = tokenizer(options, 'g');
 
               while ( (match = t.exec(val)) ) {
 
-                rule = matchRules(match[0], el, attr.name.toLowerCase(), model, options);
+                rule = matchRules(match[0], el, attrName.toLowerCase(), model, options);
 
                 if (rule) {
 
@@ -603,14 +641,18 @@ Return documentFragment
                     attr.value = rule.replace;
                   }
 
+                  if (rule.asyncInit) {
+                    setTimeout(rule.asyncInit, 0);
+                  }
+
                 }
               }
 
-              // Rule changes can mutate attributes,
-              // so process in another pass
-              if (attrRules.length) {
-                attr.value = attrVal;
-              }
+              // Set new attribute value
+              //attrVal = attrVal || attr.value;
+              //el.setAttribute(attrName, attrVal);
+
+              // Attach attribute listeners and trigger initial change
               for (ri = 0; ri < attrRules.length; ri++) {
                 rule = attrRules[ri];
                 if (rule.change) {
@@ -621,6 +663,18 @@ Return documentFragment
 
             }
 
+            // Clear 'jtmpl-'-prefixed attributes
+            ai = 0;
+            while (ai < el.attributes.length) {
+              attr = el.attributes[ai];
+              if (attr.name.lastIndexOf('jtmpl-', 0) === 0) {
+                el.removeAttribute(attr.name);
+              }
+              else {
+                ai++;
+              }
+            }
+
             // Recursively compile
             frag = compile(node, model, options);
             if (frag.childNodes.length) {
@@ -629,15 +683,19 @@ Return documentFragment
 
             break;
 
+          // Text node
+          case 3:
           // Comment node
           case 8:
-            if (matchEndBlock('', el.data, options)) {
-              throw 'jtmpl: Unexpected ' + el.data;
+            contents = el.data.trim();
+
+            if (matchEndBlock('', contents, options)) {
+              throw 'jtmpl: Unexpected ' + contents;
             }
 
-            if ( (match = el.data.match(tokenizer(options))) ) {
+            if ( (match = contents.match(tokenizer(options))) ) {
 
-              rule = matchRules(el.data, node, null, model, options);
+              rule = matchRules(contents, node, null, model, options);
               if (rule) {
 
                 // DOM replacement?
@@ -661,7 +719,7 @@ Return documentFragment
                   }
 
                   if (i === len) {
-                    throw 'jtmpl: Unclosed ' + el.data;
+                    throw 'jtmpl: Unclosed ' + contents;
                   }
                   else {
                     // Replace `el` with `rule.replace()` result
@@ -766,7 +824,7 @@ module.exports = function contentLoaded(win, fn) {
 		win[add](pre + 'load', init, false);
 	}
 
-}
+};
 
 },{}],6:[function(_dereq_,module,exports){
 /*
@@ -836,17 +894,11 @@ Evaluate object from literal or CommonJS module
           '';
         if (body.match(/^\s*{[\S\s]*}\s*$/)) {
           // Literal
-          return eval('(function(){ var result=' + body + ';return result})()' + src);
+          return eval('result=' + body + src);
         }
         // CommonJS module
         eval(body + src);
         return module.exports;
-          //eval(
-            //'(function(module, exports){' +
-            //body +
-            //';return module.exports})' +
-            //src
-          //)(module, module.exports);
       }
 
       function loadModel(src, template, doc) {
@@ -865,15 +917,18 @@ Evaluate object from literal or CommonJS module
         else {
           hashIndex = src.indexOf('#');
           // Get model via XHR
-          jtmpl('GET', hashIndex > -1 ? src.substring(0, hashIndex) : src, function (resp) {
-            var match = src.match(consts.RE_ENDS_WITH_NODE_ID);
-            var element = match && new DOMParser()
-              .parseFromString(resp, 'text/html')
-              .querySelector(match[1]);
-            mixin(model, evalObject(match ? element.innerHTML : resp, src));
-            applyPlugins();
-            jtmpl(target, template, model);
-          });
+          // Older IEs complain if URL contains hash
+          jtmpl('GET', hashIndex > -1 ? src.substring(0, hashIndex) : src,
+            function (resp) {
+              var match = src.match(consts.RE_ENDS_WITH_NODE_ID);
+              var element = match && new DOMParser()
+                .parseFromString(resp, 'text/html')
+                .querySelector(match[1]);
+              mixin(model, evalObject(match ? element.innerHTML : resp, src));
+              applyPlugins();
+              jtmpl(target, template, model);
+            }
+          );
         }
       }
 
@@ -891,24 +946,30 @@ Evaluate object from literal or CommonJS module
         else {
           hashIndex = src.indexOf('#');
           // Get template via XHR
-          jtmpl('GET', hashIndex > -1 ? src.substring(0, hashIndex) : src, function(resp) {
-            var match = src.match(consts.RE_ENDS_WITH_NODE_ID);
-            var doc;
-            if (match) {
-              doc = document.implementation.createHTMLDocument('');
-              doc.documentElement.innerHTML = resp;
-            }
-            else {
-              doc = document;
-            }
-            var element = match && doc.querySelector(match[1]);
+          jtmpl('GET', hashIndex > -1 ? src.substring(0, hashIndex) : src,
+            function(resp) {
+              var match = src.match(consts.RE_ENDS_WITH_NODE_ID);
+              var iframe, doc;
+              if (match) {
+                iframe = document.createElement('iframe');
+                iframe.style.display = 'none';
+                document.body.appendChild(iframe);
+                doc = iframe.contentDocument;
+                doc.writeln(resp);
+                document.body.removeChild(iframe);
+              }
+              else {
+                doc = document;
+              }
+              var element = match && doc.querySelector(match[1]);
 
-            loadModel(
-              match ? element.getAttribute('data-model') : '',
-              match ? element.innerHTML : resp,
-              doc
-            );
-          });
+              loadModel(
+                match ? element.getAttribute('data-model') : '',
+                match ? element.innerHTML : resp,
+                doc
+              );
+            }
+          );
         }
       }
 
@@ -1048,7 +1109,7 @@ Export
 */
     module.exports = jtmpl;
 
-},{"./compiler":3,"./consts":4,"./content-loaded":5,"./loader":7,"./xhr":17,"freak":2}],9:[function(_dereq_,module,exports){
+},{"./compiler":3,"./consts":4,"./content-loaded":5,"./loader":7,"./xhr":19,"freak":2}],9:[function(_dereq_,module,exports){
 /*
 
 ## Rules
@@ -1081,6 +1142,8 @@ It must return either:
 
     module.exports = [
       _dereq_('./rules/value-var'),
+      _dereq_('./rules/checked-var'),
+      _dereq_('./rules/selected-var'),
       _dereq_('./rules/class-section'),
       _dereq_('./rules/section'),
       _dereq_('./rules/inverted-section'),
@@ -1089,7 +1152,72 @@ It must return either:
       _dereq_('./rules/var')
     ];
 
-},{"./rules/class-section":10,"./rules/inverted-section":11,"./rules/partial":12,"./rules/section":13,"./rules/unescaped-var":14,"./rules/value-var":15,"./rules/var":16}],10:[function(_dereq_,module,exports){
+},{"./rules/checked-var":10,"./rules/class-section":11,"./rules/inverted-section":12,"./rules/partial":13,"./rules/section":14,"./rules/selected-var":15,"./rules/unescaped-var":16,"./rules/value-var":17,"./rules/var":18}],10:[function(_dereq_,module,exports){
+/*
+
+### checked="{{val}}"
+
+Handle "checked" attribute
+
+*/
+
+    var radioGroups = {};
+    // Currently updating?
+    var updating = false;
+
+
+    module.exports = function(tag, node, attr, model, options) {
+      var match = tag.match(_dereq_('../consts').RE_IDENTIFIER);
+      var prop = match && match[0];
+
+      function change() {
+        if (updating) {
+          return;
+        }
+        node[model(prop) ? 'setAttribute' : 'removeAttribute']
+          ('checked', '');
+      }
+
+      if (match && attr === 'checked') {
+        // radio group?
+        if (node.type === 'radio' && node.name) {
+          if (!radioGroups[node.name]) {
+            // Init radio group ([0]: node, [1]: model)
+            radioGroups[node.name] = [[], []];
+          }
+          // Add input to radio group
+          radioGroups[node.name][0].push(node);
+          // Add context to radio group
+          radioGroups[node.name][1].push(model);
+        }
+
+        node.addEventListener('click', function() {
+          updating = true;
+          if (node.type === 'radio' && node.name) {
+            // Update all inputs from the group
+            for (var i = 0, len = radioGroups[node.name][0].length; i < len; i++) {
+              radioGroups[node.name][1][i](prop, radioGroups[node.name][0][i].checked);
+            }
+          }
+          else {
+            // Update current input only
+            model(prop, node[attr]);
+          }
+          updating = false;
+        });
+
+        return {
+          prop: prop,
+          replace: '',
+          change: change,
+          asyncInit: function() {
+            model.trigger('change', prop);
+          }
+        };
+      }
+    }
+
+},{"../consts":4}],11:[function(_dereq_,module,exports){
 /*
 
 ### class="{{#ifCondition}}some-class{{/}}"
@@ -1129,7 +1257,7 @@ Toggles class `some-class` in sync with boolean not `model.notIfCondition`
       }
     }
 
-},{"../consts":4,"element-class":1}],11:[function(_dereq_,module,exports){
+},{"../consts":4,"element-class":1}],12:[function(_dereq_,module,exports){
 /*
 
 ### {{^inverted-section}}
@@ -1200,7 +1328,7 @@ Can be bound to text node
       }
     }
 
-},{"../compiler":3,"../consts":4}],12:[function(_dereq_,module,exports){
+},{"../compiler":3,"../consts":4}],13:[function(_dereq_,module,exports){
 /*
 
 ### Partial
@@ -1252,7 +1380,7 @@ Replaces parent tag contents, always wrap in a tag
       }
     }
 
-},{"../consts":4,"../loader":7}],13:[function(_dereq_,module,exports){
+},{"../consts":4,"../loader":7}],14:[function(_dereq_,module,exports){
 /*
 
 ### {{#section}}
@@ -1374,7 +1502,76 @@ Can be bound to text node
       }
     }
 
-},{"../compiler":3,"../consts":4}],14:[function(_dereq_,module,exports){
+},{"../compiler":3,"../consts":4}],15:[function(_dereq_,module,exports){
+/*
+
+### selected="{{val}}"
+
+Handle "selected" attribute
+
+*/
+
+    var selects = [];
+    var selectOptions = [];
+    var selectOptionsContexts = [];
+
+    function updateOptions(i, prop) {
+      for (var oi = 0, olen = selectOptions[i].length; oi < olen; oi++) {
+        selectOptionsContexts[i][oi](prop, selectOptions[i][oi].selected);
+      }
+    }
+
+    module.exports = function(tag, node, attr, model, options) {
+      var match = tag.match(_dereq_('../consts').RE_IDENTIFIER);
+      var prop = match && match[0];
+
+      function change() {
+        node[model(prop) ? 'setAttribute' : 'removeAttribute']
+          ('selected', '');
+      }
+
+      if (match && attr === 'selected') {
+        // <select> option?
+        if (node.nodeName === 'OPTION') {
+          // Process async, as parentNode is still documentFragment
+          setTimeout(function() {
+            var i = selects.indexOf(node.parentNode);
+            if (i === -1) {
+              // Add <select> to list
+              i = selects.push(node.parentNode) - 1;
+              // Init options
+              selectOptions.push([]);
+              // Init options contexts
+              selectOptionsContexts.push([]);
+              // Attach change listener
+              node.parentNode.addEventListener('change', function() {
+                updateOptions(i, prop);
+              });
+              // Trigger initial update
+              //updateOptions(i, prop);
+            }
+            // Remember option and context
+            selectOptions[i].push(node);
+            selectOptionsContexts[i].push(model);
+          }, 0);
+        }
+
+        node.addEventListener('change', function() {
+          model(prop, node[attr]);
+        });
+
+        return {
+          prop: prop,
+          replace: '',
+          change: change,
+          asyncInit: function() {
+            model.trigger('change', prop);
+          }
+        };
+      }
+    }
+
+},{"../consts":4}],16:[function(_dereq_,module,exports){
 /*
 
 ### {{&var}}
@@ -1417,41 +1614,14 @@ Can be bound to node innerHTML
       }
     }
 
-},{"../consts":4}],15:[function(_dereq_,module,exports){
+},{"../consts":4}],17:[function(_dereq_,module,exports){
 /*
 
-### (value | checked | selected)="{{val}}"
+### value="{{val}}"
 
-Handle "value", "checked" and "selected" attributes
+Handle "value" attribute
 
 */
-
-    function triggerEvent(el, eventName){
-      var event;
-      if (document.createEvent){
-        event = document.createEvent('HTMLEvents');
-        event.initEvent(eventName,true,true);
-      }
-      else if(document.createEventObject){
-        // IE < 9
-        event = document.createEventObject();
-        event.eventType = eventName;
-      }
-      event.eventName = eventName;
-      if (el.dispatchEvent){
-        el.dispatchEvent(event);
-      }
-      else if (el.fireEvent && htmlEvents['on' + eventName]) {
-        // IE < 9
-        el.fireEvent('on' + event.eventType, event);
-      }
-      else if (el[eventName]) {
-        el[eventName]();
-      }
-      else if (el['on' + eventName]) {
-        el['on' + eventName]();
-      }
-    }
 
     module.exports = function(tag, node, attr, model, options) {
       var match = tag.match(_dereq_('../consts').RE_IDENTIFIER);
@@ -1464,43 +1634,10 @@ Handle "value", "checked" and "selected" attributes
         }
       }
 
-      if (match && ['value', 'checked', 'selected'].indexOf(attr) > -1) {
-        // <select> option?
-        if (node.nodeName === 'OPTION') {
-          // Attach async, as parentNode is still documentFragment
-          setTimeout(function() {
-            if (node && node.parentNode) {
-              node.parentNode.addEventListener('change', function() {
-                if (model(prop) !== node.selected) {
-                  model(prop, node.selected);
-                }
-              });
-            }
-          }, 0);
-        }
-
-        // radio group?
-        if (node.type === 'radio' && node.name) {
-          node.addEventListener('change', function() {
-            if (node[attr]) {
-              for (var i = 0,
-                  inputs = document.querySelectorAll('input[type=radio][name=' + node.name + ']'),
-                  len = inputs.length;
-                  i < len;
-                  i++
-                ) {
-                if (inputs[i] !== node) {
-                  triggerEvent(inputs[i], 'change');
-                }
-              }
-            }
-            model(prop, node[attr]);
-          });
-        }
-
+      if (match && attr === 'value') {
         // text input?
         var eventType = ['text', 'password'].indexOf(node.type) > -1 ?
-          'input' : 'change';
+          'keyup' : 'change'; // IE9 incorectly reports it supports input event
 
         node.addEventListener(eventType, function() {
           model(prop, node[attr]);
@@ -1514,7 +1651,7 @@ Handle "value", "checked" and "selected" attributes
       }
     }
 
-},{"../consts":4}],16:[function(_dereq_,module,exports){
+},{"../consts":4}],18:[function(_dereq_,module,exports){
 /*
 
 ### {{var}}
@@ -1561,7 +1698,7 @@ Can be bound to text node data or attribute
       }
     }
 
-},{"../consts":4}],17:[function(_dereq_,module,exports){
+},{"../consts":4}],19:[function(_dereq_,module,exports){
 /*
 
 Requests API
@@ -1606,13 +1743,13 @@ Requests API
             Object.keys(args[2]).map(
               function(x) {
                 return x + '=' + encodeURIComponent(args[2][x]);
-              } 
+              }
             ).join('&') :
 
             // No parameters
             '';
 
-      xhr.onload = function(event) {
+      var onload = function(event) {
         var resp;
 
         if (callback) {
@@ -1626,15 +1763,28 @@ Requests API
         }
       };
 
+      xhr.onreadystatechange = function() {
+        if (xhr.readyState === 4) {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            onload.call(this, 'done');
+          }
+          else {
+            console.log('jtmpl XHR error: ' + this.responseText);
+          }
+        }
+      };
+
       xhr.open(args[0], args[1],
-        (opts.async !== undefined ? opts.async : true), 
+        (opts.async !== undefined ? opts.async : true),
         opts.user, opts.password);
 
       xhr.send(request);
 
+      return xhr;
+
     };
 
-},{}],18:[function(_dereq_,module,exports){
+},{}],20:[function(_dereq_,module,exports){
 _dereq_('./polyfills/matches');
 
 var jtmpl = _dereq_('jtmpl-core/src/main');
@@ -1644,7 +1794,7 @@ jtmpl.plugins.routes = _dereq_('./plugins/routes');
 
 module.exports = jtmpl;
 
-},{"./plugins/on":19,"./plugins/routes":20,"./polyfills/matches":21,"jtmpl-core/src/main":8}],19:[function(_dereq_,module,exports){
+},{"./plugins/on":21,"./plugins/routes":22,"./polyfills/matches":23,"jtmpl-core/src/main":8}],21:[function(_dereq_,module,exports){
 module.exports = function(events, target) {
   function addEvent(event) {
     target.addEventListener(
@@ -1664,11 +1814,11 @@ module.exports = function(events, target) {
   }
 }
 
-},{}],20:[function(_dereq_,module,exports){
+},{}],22:[function(_dereq_,module,exports){
 module.exports = function(routes, target) {
 };
 
-},{}],21:[function(_dereq_,module,exports){
+},{}],23:[function(_dereq_,module,exports){
 typeof Element !== 'undefined' && (function(ElementPrototype) {
   ElementPrototype.matches = ElementPrototype.matches ||
     ElementPrototype.mozMatchesSelector ||
@@ -1684,6 +1834,6 @@ typeof Element !== 'undefined' && (function(ElementPrototype) {
     };
 })(Element.prototype);
 
-},{}]},{},[18])
-(18)
+},{}]},{},[20])
+(20)
 });
