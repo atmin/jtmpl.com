@@ -1174,8 +1174,15 @@ Handle "checked" attribute
         if (updating) {
           return;
         }
-        node[model(prop) ? 'setAttribute' : 'removeAttribute']
-          ('checked', '');
+        if (node.name) {
+          for (var i = 0, len = radioGroups[node.name][0].length; i < len; i++) {
+            radioGroups[node.name][0][i].checked = radioGroups[node.name][1][i](prop);
+          }
+        }
+        else {
+          node[model(prop) ? 'setAttribute' : 'removeAttribute']
+            ('checked', '');
+        }
       }
 
       if (match && attr === 'checked') {
@@ -1547,18 +1554,12 @@ Handle "selected" attribute
               node.parentNode.addEventListener('change', function() {
                 updateOptions(i, prop);
               });
-              // Trigger initial update
-              //updateOptions(i, prop);
             }
             // Remember option and context
             selectOptions[i].push(node);
             selectOptionsContexts[i].push(model);
           }, 0);
         }
-
-        node.addEventListener('change', function() {
-          model(prop, node[attr]);
-        });
 
         return {
           prop: prop,
