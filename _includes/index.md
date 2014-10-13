@@ -2,9 +2,9 @@
 
 ## What
 
-jtmpl is an extensible, modular, functional reactive DOM templating engine.
+jtmpl is an extensible, modular, functional-reactive DOM templating engine.
 It makes complex GUI development fun and productive.
-It's simple conceptually and can be [grasped quickly](tutorial).
+It's simple conceptually and can be [grasped quickly](examples).
 
 
 ## Features

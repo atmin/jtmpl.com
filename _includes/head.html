@@ -1,0 +1,32 @@
+<!--[if IE 8]>
+<script src="//cdn.polyfill.io/v1/polyfill.js?features=modernizr:es5array,Object.keys,Object.getOwnPropertyNames,String.prototype.trim,Window.prototype.Event.ie8,Window.prototype.Event.ie8.DOMContentLoaded,Function.prototype.bind,html5shiv"></script>
+<script>
+  (function (origCloneNode) {
+      Object.defineProperty(Element.prototype, 'cloneNode', {
+
+          value: function (deep) {
+              switch (this.nodeType) {
+                  case 1:
+                      var i, len, child;
+                      var clone = origCloneNode.call(this, false);
+
+                      if (deep) {
+                          for (i = 0, len = this.childNodes.length; i < len; i++) {
+                              child = this.childNodes[i];
+                              clone.appendChild(child.cloneNode(true));
+                          }
+                      }
+
+                      return clone;
+
+                  case 3:
+                      return document.createTextNode(this.data);
+
+                  case 8:
+                      return document.createComment(this.data);
+              }
+          }
+      });
+  })(Element.prototype.cloneNode);
+</script>
+<![endif]-->
