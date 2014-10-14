@@ -18,23 +18,17 @@ layout: default
 
 <div id="target" data-jtmpl="#template"></div>
 
-
 <script id="template" data-model="#model" type="text/template">
   <label>Greet goes to <input value="{{who}}"></label><br>
 
   <h3>Hello, {{who}}</h3>
 </script>
 
-
-
 <script id="model" type="text/model">
   {
     who: 'world'
   }
 </script>
-
-
-
 
 -----
 
@@ -44,53 +38,13 @@ layout: default
 ```html
 <!DOCTYPE html>
 
-<!--(1) Define your target(s)
+<!-- (1) Target, references template -->
+<div id="target" data-jtmpl="#template"></div>
 
-    [data-jtmpl] elements are
-    automatically processed.
-
-
-    Supported template source formats:
-
-  * "#element-id"
-
-    An element in current document.
-
-
-  * "url"
-
-    Content, fetched dynamically from URL.
-
-
-  * "url#element-id"
-
-    Document, fetched from URL, element
-    referenced by id.
-
--->
-<div id="target" data-jtmpl="#template">
-  <p>
-    You can provide content for search engines
-    and JavaScript-less agents here.
-  </p>
-
-  <p>
-    Alternatively, you could put template here
-    and reference the element in [data-jtmpl],
-    like <code>data-jtmpl="#target"</code>
-  </p>
-</div>
-
-
-<!--(2) Provide a template
-
-    Template is usually linked to a data model.
-    [data-model] format is the same as [data-jtmpl]
--->
+<!-- (2) Template, references model -->
 <script id="template"
   data-model="#model"
   type="text/template">
-
   <label>
     Greet goes to
     <input value="{{who}}">
@@ -98,8 +52,36 @@ layout: default
   <h3>Hello, {{who}}</h3>
 </script>
 
+<!--(3) Data model -->
+<script id="model" type="text/model">
+  {
+    who: 'world'
+  }
+</script>
 
-<!--(3) The data model is a POJO.
+<!--(4) Include jtmpl -->
+<script src="jtmpl.js"></script>
+```
+
+
+1. Define your target(s)
+
+    `[data-jtmpl]` elements are automatically processed.
+
+    Supported template source formats:
+    * `"#element-id"`: an element in current document
+    * `"url"`: content, fetched dynamically from URL
+    * `"url#element-id"`: document, fetched from URL, element referenced by id
+
+    You can provide content for search engines
+    and JavaScript-less agents in this tag. Or host template contents.
+
+2. Provide a template
+
+    Template is usually linked to a data model.
+    `[data-model]` format is the same as `[data-jtmpl]`
+
+3. The data model is a POJO (Plain Old JavaScript Object).
 
     And optional. If you don't provide one,
     an empty model is implied.
@@ -114,6 +96,7 @@ layout: default
 
     Alternative CommonJS syntax would be:
 
+    ```html
     <script id="model">
       if (typeof module !== 'undefined') {
         module.exports = {
@@ -121,28 +104,25 @@ layout: default
         }
       }
     </script>
+    ```
 
     So you'd get syntax checking by the browser.
--->
-<script id="model" type="text/model">
-  {
-    who: 'world'
-  }
-</script>
 
+4. Just include jtmpl somewhere. It will do its work when
+   DOM is ready.
 
-<!--(4) Just include jtmpl somewhere.
+    Manual invocation (for `[data-jtmpl]`-less elements):
 
-    Manual invocation (for non [data-jtmpl] elements):
-
+    ```js
     jtmpl(
       '#target-id',
       'template contents or #template-id',
       { model: "object" }
     );
--->
-<script src="jtmpl.js"></script>
-```
+    ```
+
+
+
 
 
 {% endraw %}

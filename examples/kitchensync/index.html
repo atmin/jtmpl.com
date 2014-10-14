@@ -481,12 +481,15 @@ checkAll: function(newVal) {
 
 ## Conditions
 
+Just the way you'd render a condition using Mustache. Additionally, short end-tags
+({&shy;{/}}) are supported.
+
 {% raw %}
 
 ```html
 <p>
   <label>
-    <input type="checkbox" checked="{{condition}}">
+    <input type="checkbox" checked="{\{condition}}">
     <code>model('condition')</code>
   </label>
 </p>
@@ -542,6 +545,12 @@ condition: true,
 {% capture tree_partial %}
 
 ## Partials
+
+Partials are template includes. They can be literal strings or variable references.
+Formats supported are the same as the `[data-jtmpl]` attribute. Partial container tag
+can reference a prototype model (via the `[data-model]` attribute), which gets
+automatically inherited by the current context. So partials are true micro-applications
+or components, there's no conceptual difference.
 
 ### Recursive partial
 
@@ -622,17 +631,20 @@ tree: [
 </div>
 ```
 
-```
+```html
 <!-- Partial template in partials.html -->
 <script id="a-partial"
   type="text/jtmpl"
   data-model="#a-partial-model">
   <p>
-    I am a partial in its own file, having own model and I am loaded
-    into the <code>externalPartial</code> context of my parent.
+    I am a partial in its own file,
+    having own model and I am loaded
+    into the <code>externalPartial</code> context
+    of my parent.
   </p>
   <p>
-    My properties are: own = "{{own}}", extended = "{{extended}}"
+    My properties are: own = "{\{own}}",
+    extended = "{\{extended}}"
   </p>
 </script>
 ```
@@ -687,10 +699,13 @@ externalPartial: {
 </div>
 ```
 
-```
+```html
 <!-- Partial template in partials.html -->
 <script id="partial2" type="text/jtmpl">
-  <p>partials.html#partial2, loaded via <code>dynamicPartial</code></p>
+  <p>
+    partials.html#partial2,
+    loaded via <code>dynamicPartial</code>
+  </p>
 </script>
 ```
 
@@ -756,7 +771,14 @@ dynamicPartial: 'partials.html#partial2'
 <div id="target" data-jtmpl="#app"></div>
 
 <div id="target2" data-jtmpl="#target2" data-model="external-model.js">
-  <h3>Another target, self-contained template, external model</h3>
+  <h2>Another target, <code>div#target2</code></h2>
+  <ul>
+    <li>self-contained template, <code>data-jtmpl="#target2"</code></li>
+    <li>external model,
+      <code>data-model="<a href="external-model.js">external-model.js</a>"</code>
+    </li>
+  </ul>
+  <h3>#ITEMS</h3>
   {{#items}}{{.}}&nbsp;{{/}}
 </div>
 
@@ -777,15 +799,13 @@ dynamicPartial: 'partials.html#partial2'
   <h2>The model</h2>
 
   <p>
-    The data model of any target tag can be referenced:
+    The data model of any target tag can be referenced:<br>
     <code>var model = jtmpl('#target');</code>
   </p>
 
   <p>
     The data model is a <a href="https://github.com/atmin/freak">Freak instance</a>, an accessor function.
   </p>
-
-
 
   {% endraw %}{{ variable_binding|markdownify }}{% raw %}
 
@@ -815,20 +835,6 @@ dynamicPartial: 'partials.html#partial2'
 
   {% endraw %}{{ dynamic_partial|markdownify }}{% raw %}
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 </script>
 
 
@@ -856,6 +862,12 @@ dynamicPartial: 'partials.html#partial2'
     // Initialization
     __init__: function() {
       this('initialized', true);
+      setTimeout(function() {
+        // Fix code snippets
+        [].map.call(document.querySelectorAll('.highlight'), function(el) {
+          el.innerHTML = el.innerHTML.replace(/\\\{/g, '{');
+        });
+      });
     },
 
     // Events
@@ -945,15 +957,6 @@ dynamicPartial: 'partials.html#partial2'
     },
     dynamicPartial: 'partials.html#partial2'
   }
-</script>
-
-<script>
-  window.onload = function() {
-    // Fix code snippets
-    [].map.call(document.querySelectorAll('.highlight'), function(el) {
-      el.innerHTML = el.innerHTML.replace(/\\\{/g, '{');
-    });
-  };
 </script>
 
 {% endraw %}
