@@ -137,6 +137,14 @@ nothing to see here, move along {{nonExistentVariable}}
 
 ## Collections, events
 
+* an array of numbers is iterated and contents appended
+to an `<ul>`
+
+* inverted section provides "&lt;no numbers>" if array is empty
+
+* `on` plugin delegates `click` event of `.push` and `.pop` elements
+  to respective functions
+
 {% raw %}
 
 ```html
@@ -194,6 +202,9 @@ numbers: [1, 2, 3],
 {% capture computed_property %}
 
 ## Computed properties
+
+Powered by [Freak](https://github.com/atmin/freak).
+[More examples](https://github.com/atmin/jtmpl.com/blob/gh-pages/examples/todomvc/js/app.js#L138).
 
 {% raw %}
 
@@ -764,7 +775,8 @@ dynamicPartial: 'partials.html#partial2'
 <h2>KitchenSync</h2>
 
 <p>
-  Demo of most jtmpl features (WIP). Tags closely mimic Mustache behavior,
+  Demo of most jtmpl features (WIP). Tags closely mimic
+  <a href="https://mustache.github.io/mustache.5.html">Mustache</a> behavior,
   but the result is <i>live</i> and always in sync with the model.
 </p>
 
@@ -782,6 +794,13 @@ dynamicPartial: 'partials.html#partial2'
   {{#items}}{{.}}&nbsp;{{/}}
 </div>
 
+<div>
+  <h2>Meta</h2>
+  <p>
+    This page is written in Markdown, processed by Jekyll at compile time and jtmpl at runtime.
+    <a href="https://github.com/atmin/jtmpl.com/blob/gh-pages/examples/kitchensync/index.html">Here is the source</a>.
+  </p>
+</div>
 
 <br><br><br><br><br>
 <p>
