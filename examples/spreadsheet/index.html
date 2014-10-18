@@ -1,0 +1,38 @@
+<!doctype html>
+<html>
+
+<head>
+  <link rel="stylesheet" href="http://yui.yahooapis.com/pure/0.5.0/pure-min.css">
+</head>
+
+<body>
+  <div id="app" data-jtmpl="#app-template"></div>
+
+
+  <script id="app-template" type="text/template" data-model="app.js">
+    <table>
+      <thead>
+        <th></th>
+        {{#headers}}
+        <th>{{.}}</th>
+        {{/}}
+      </thead>
+      <tbody>
+        {{#rows}}
+          <tr>
+            <th>{{_i}}</th>
+          {{#cols}}
+            <td contenteditable="{{_editing}}">{{value}}</td>
+          {{/}}
+          </tr>
+        {{/}}
+        </tbody>
+    </table>
+  </script>
+
+
+  <script src="//cdn.jsdelivr.net/ramda/0.6.0/ramda.min.js"></script>
+  <script src="/jtmpl.js"></script>
+</body>
+
+</html>

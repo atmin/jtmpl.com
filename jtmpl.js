@@ -436,108 +436,118 @@ Return documentFragment
 
 */
 
-    module.exports = function compile(template, model, options) {
 
-      var consts = _dereq_('./consts');
+    var consts = _dereq_('./consts');
+    var reEndBlock;
 
-      // Utility functions
+    // Utility functions
 
-      function escapeRE(s) {
-        return (s + '').replace(/([.?*+^$[\]\\(){}|-])/g, '\\$1');
-      }
-
-
-      function tokenizer(options, flags) {
-        return RegExp(
-          escapeRE(options.delimiters[0]) +
-          '(' + consts.RE_ANYTHING + ')' +
-          escapeRE(options.delimiters[1]),
-          flags
-        );
-      }
+    function escapeRE(s) {
+      return (s + '').replace(/([.?*+^$[\]\\(){}|-])/g, '\\$1');
+    }
 
 
-      function matchRules(tag, node, attr, model, options) {
-        var i, match;
-        var rules = _dereq_('./rules');
-        var rulesLen = rules.length;
+    function tokenizer(options, flags) {
+      return RegExp(
+        escapeRE(options.delimiters[0]) +
+        '(' + consts.RE_ANYTHING + ')' +
+        escapeRE(options.delimiters[1]),
+        flags
+      );
+    }
 
-        // Strip delimiters
-        tag = tag.slice(options.delimiters[0].length, -options.delimiters[1].length);
 
-        for (i = 0; i < rulesLen; i++) {
-          match = rules[i](tag, node, attr, model, options);
+    function matchRules(tag, node, attr, model, options) {
+      var i, match;
+      var rules = _dereq_('./rules');
+      var rulesLen = rules.length;
 
-          if (match) {
-            match.index = i;
-            return match;
-          }
+      // Strip delimiters
+      tag = tag.slice(options.delimiters[0].length, -options.delimiters[1].length);
+
+      for (i = 0; i < rulesLen; i++) {
+        match = rules[i](tag, node, attr, model, options);
+
+        if (match) {
+          match.index = i;
+          return match;
         }
       }
+    }
 
 
-      function preprocess(template, options) {
-        // replace {{{tag}}} with {{&tag}}
-        template = template.replace(
-          RegExp(
-            escapeRE(options.delimiters[0] + '{') +
-            consts.RE_SRC_IDENTIFIER +
-            escapeRE('}' + options.delimiters[1]),
-            'g'
-          ),
-          options.delimiters[0] + '&$1' + options.delimiters[1]
+    function preprocess(template, options) {
+      // replace {{{tag}}} with {{&tag}}
+      template = template.replace(
+        RegExp(
+          escapeRE(options.delimiters[0] + '{') +
+          consts.RE_SRC_IDENTIFIER +
+          escapeRE('}' + options.delimiters[1]),
+          'g'
+        ),
+        options.delimiters[0] + '&$1' + options.delimiters[1]
+      );
+      // 1. wrap each non-attribute tag
+      // (that's not inside <select> (fuck you, IE)) in HTML comment
+      // 2. remove Mustache comments
+      template = template.replace(
+        tokenizer(options, 'g'),
+        function(match, match1, pos) {
+          var head = template.slice(0, pos);
+          var insideTag = !!head.match(RegExp('<' + consts.RE_SRC_IDENTIFIER + '[^>]*?$'));
+          var opening = head.match(/<(select|SELECT)/g);
+          var closing = head.match(/<\/(select|SELECT)/g);
+          var insideSelect =
+              (opening && opening.length || 0) > (closing && closing.length || 0);
+          var insideComment = !!head.match(/<!--\s*$/);
+          var isMustacheComment = match1.indexOf('!') === 0;
+
+          return insideTag || insideComment ?
+            isMustacheComment ?
+              '' :
+              match :
+            insideSelect ?
+              match :
+              '<!--' + match + '-->';
+        }
+      );
+      // prefix 'selected' and 'checked' attributes with 'jtmpl-'
+      // (to avoid "special" processing, oh IE8)
+      template = template.replace(
+        /(<(?:option|OPTION)[^>]*?)(?:selected|SELECTED)=/g,
+        '$1jtmpl-selected=');
+
+      template = template.replace(
+        /(<(?:input|INPUT)[^>]*?)(?:checked|CHECKED)=/g,
+        '$1jtmpl-checked=');
+
+      return template;
+    }
+
+
+    function matchEndBlock(block, template, options) {
+      if (!reEndBlock) {
+        reEndBlock = RegExp(
+          escapeRE(options.delimiters[0]) +
+          '\\/' + consts.RE_SRC_IDENTIFIER + '?' +
+          escapeRE(options.delimiters[1])
         );
-        // 1. wrap each non-attribute tag
-        // (that's not inside <select> (fuck you, IE)) in HTML comment
-        // 2. remove Mustache comments
-        template = template.replace(
-          tokenizer(options, 'g'),
-          function(match, match1, pos) {
-            var head = template.slice(0, pos);
-            var insideTag = !!head.match(RegExp('<' + consts.RE_SRC_IDENTIFIER + '[^>]*?$'));
-            var opening = head.match(/<(select|SELECT)/g);
-            var closing = head.match(/<\/(select|SELECT)/g);
-            var insideSelect =
-                (opening && opening.length || 0) > (closing && closing.length || 0);
-            var insideComment = !!head.match(/<!--\s*$/);
-            var isMustacheComment = match1.indexOf('!') === 0;
-
-            return insideTag || insideComment ?
-              isMustacheComment ?
-                '' :
-                match :
-              insideSelect ?
-                match :
-                '<!--' + match + '-->';
-          }
-        );
-        // prefix 'selected' and 'checked' attributes with 'jtmpl-'
-        // (to avoid "special" processing, oh IE8)
-        template = template.replace(
-          /(<(?:option|OPTION)[^>]*?)(?:selected|SELECTED)=/g,
-          '$1jtmpl-selected=');
-
-        template = template.replace(
-          /(<(?:input|INPUT)[^>]*?)(?:checked|CHECKED)=/g,
-          '$1jtmpl-checked=');
-
-        return template;
       }
+      var match = template.match(reEndBlock);
+      return match ?
+        block === '' || !match[1] || match[1] === block :
+        false;
+    }
 
 
-      function matchEndBlock(block, template, options) {
-        var match = template.match(
-          RegExp(
-            escapeRE(options.delimiters[0]) +
-            '\\/' + consts.RE_SRC_IDENTIFIER + '?' +
-            escapeRE(options.delimiters[1])
-          )
-        );
-        return match ?
-          block === '' || !match[1] || match[1] === block :
-          false;
-      }
 
+
+    var templateCache = [];
+    var newCounter = 0;
+    var cacheHitCounter = 0;
+
+
+    module.exports = function compile(template, model, options) {
 
       // Variables
 
@@ -566,6 +576,7 @@ Return documentFragment
         body = template;
       }
       else {
+        console.log('compiler: IFRAME construction');
         template = preprocess(template, options);
         iframe = document.createElement('iframe');
         iframe.style.display = 'none';
@@ -573,6 +584,14 @@ Return documentFragment
         iframe.contentDocument.writeln('<!doctype html>\n<html><body>' + template + '</body></html>');
         body = iframe.contentDocument.body;
         document.body.removeChild(iframe);
+      }
+
+      if (templateCache.indexOf(body) === -1) {
+        newCounter++;
+        templateCache.push(body);
+      }
+      else {
+        cacheHitCounter++;
       }
 
       // Iterate child nodes.
@@ -742,6 +761,8 @@ Return documentFragment
 
       } // for
 
+      console.log('newCounter: ' + newCounter);
+      console.log('cacheHitCounter: ' + cacheHitCounter);
       return fragment;
     };
 
@@ -1096,7 +1117,11 @@ Plugins
     jtmpl.plugins = {
       init: function(arg) {
         if (typeof arg === 'function') {
-          arg.call(this);
+          var that = this;
+          // Call async, after jtmpl has constructed the DOM
+          setTimeout(function() {
+            arg.call(that);
+          });
         }
       }
     };
