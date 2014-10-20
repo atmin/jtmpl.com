@@ -29,14 +29,14 @@ jtmpl is compatible with IE8+ and all modern browsers.
 
 
 
-<h3 id="data-binding"> How is data-binding handled?</h3>
+### How is data-binding handled?
 
 `jtmpl` operates on the DOM level. For each Mustache tag, it figures out how data model changes can affect the DOM and vice-versa, and registers reactors and event listeners, which keep data and view synchronized at all times.
 
 
 
 
-<h3 id="boilerplate"> How to use it?</h3>
+### How to use it?
 
 Define a target element, a template source, an optional model source via `data-` attributes and include `jtmpl` somewhere in your page. Template source is Mustache + HTML, model is a plain JavaScript object.
 
@@ -51,7 +51,7 @@ Mustache templating engine into the web applications realm.
 
 
 
-<h3 id="freak">How do the model functions refer to model itself?</h3>
+### How do the model functions refer to model itself?
 
 Traditionally, object methods refer to properties and other methods via the `this`
 context, like `this.foo`. `jtmpl` takes a functional approach: `this` is the current
@@ -101,6 +101,21 @@ Interested only on this part? It's a separate project:
 [Freak](https://github.com/atmin/freak),
 functional reactive object wrapper.
 
+
+
+
+### Performance?
+
+jtmpl works fine for smallish templates and data, like rendering forms (even complicated).
+It's not currently suitable for large templates or quantities of data, like 1000 row x 20 col
+spreadsheet, as it is a pure interpreter of the cartesian product of template and data
+(after initial rendering updates are instant, though).
+
+Current work happens in the `perf` branch and the aim is to make it fast by making it a true
+template-to-JS compiler, without sacrificing any dynamism. Results so far are promising.
+
+Ultimate goal is to make it suitable for performance-heavy applications, while retaining ease of
+use and the small code size (comparable to e.g. Backbone).
 
 
 
