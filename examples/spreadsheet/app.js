@@ -3,6 +3,14 @@
 
   module.exports = {
 
+    __on__: {
+      'click': {
+        '.sheet td': function() {
+          this('_editing', true);
+        }
+      }
+    },
+
     __init__: function() {
 
       this('headers',
@@ -18,7 +26,7 @@
                 function(el) {
                   return {
                     value: el
-                  }
+                  };
                 },
                 R.map(
                   function(el) {

@@ -25,7 +25,8 @@ approach are now stable.
 
 ### Browser compatibility?
 
-jtmpl is compatible with IE8+ and all modern browsers.
+jtmpl is compatible with IE9+ and all modern browsers. Check [GitHub page](https://github.com/atmin/jtmpl)
+for browsers badge.
 
 
 
@@ -106,16 +107,9 @@ functional reactive object wrapper.
 
 ### Performance?
 
-jtmpl works fine for smallish templates and data, like rendering forms (even complicated).
-It's not currently suitable for large templates or quantities of data, like 1000 row x 20 col
-spreadsheet, as it is a pure interpreter of the cartesian product of template and data
-(after initial rendering updates are instant, though).
-
-Current work happens in the `perf` branch and the aim is to make it fast by making it a true
-template-to-JS compiler, without sacrificing any dynamism. Results so far are promising.
-
-Ultimate goal is to make it suitable for performance-heavy applications, while retaining ease of
-use and the small code size (comparable to e.g. Backbone).
+Not specifically tested, but should be fast enough. jtmpl compiles your templates once to
+pure JavaScript functions, that emit DOM structure and bindings and then uses them. Whenever
+a model property changes, only the relevant DOM bit is updated.
 
 
 
