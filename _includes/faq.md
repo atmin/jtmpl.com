@@ -26,7 +26,8 @@ approach are now stable.
 ### Browser compatibility?
 
 jtmpl is compatible with IE9+ and all modern browsers. Check [GitHub page](https://github.com/atmin/jtmpl)
-for browsers badge.
+for browsers badge. Opera is unofficially supported, as well, but currently can't make it run the
+automated tests (and probably won't bother).
 
 
 
