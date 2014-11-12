@@ -34,7 +34,7 @@ No need to touch the DOM: it's the result of your template + current model state
 * Predictable, plays nice with others: generated DOM is stable and only necessary parts
 are updated synchronously with model updates.
 
-* Lightweight.
+* Lightweight, only 6KB min&gz.
 
 
 
