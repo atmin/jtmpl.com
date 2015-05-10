@@ -13,15 +13,15 @@
 
   // Route handling (currently no `routes` plugin)
   function hashchange() {
-    this('filters').values.map(function(el, i) {
+    this('filters').forEach(function(el, i) {
       if (location.hash === el.href) {
-        this('filters')(i)('selected', true);
+        this('selected', true);
         currentFilter = el.filter;
       }
       else {
-        this('filters')(i)('selected', false);
+        this('selected', false);
       }
-    }, this);
+    });
     // Update todo items on route change
     jtmpl('#todoapp').trigger('change', 'todos');
   }
@@ -107,9 +107,9 @@
       dblclick: {
         '#todo-list label': function() {
           // Finish any editing
-          this.root('todos').values.map(function(el, i) {
-            this.root('todos')(i)('_editing', false);
-          }, this);
+          this.root('todos').forEach(function() {
+            this('_editing', false);
+          });
           // Enter edit mode for current todo
           this('_editing', true);
         }
@@ -140,7 +140,7 @@
       return this('todos').len;
     },
     completedItemsLength: function() {
-      return this('todos').values.reduce(
+      return this('todos').reduce(
         function (prev, curr) {
           return prev + (curr.completed && 1 || 0);
         }, 0);
@@ -154,9 +154,9 @@
     toggleAll: function(newVal) {
       if (typeof newVal === 'boolean') {
         // Setter
-        this('todos').values.map(function(el, i) {
-          this('todos')(i)('completed', newVal);
-        }, this);
+        this('todos').forEach(function() {
+          this('completed', newVal);
+        });
         // Current limitation is setters do not track changes automatically
         this.trigger('change', 'todos');
       }
@@ -188,6 +188,6 @@
       }
     ]
 
-  }
+  };
 
 })();

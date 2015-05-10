@@ -15,5 +15,8 @@
   "bugs": {
     "url": "https://github.com/atmin/jtmpl.com/issues"
   },
-  "homepage": "https://github.com/atmin/jtmpl.com"
+  "homepage": "https://github.com/atmin/jtmpl.com",
+  "scripts": {
+    "start": "jekyll serve --watch"
+  }
 }
