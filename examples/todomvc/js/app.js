@@ -14,13 +14,9 @@
   // Route handling (currently no `routes` plugin)
   function hashchange() {
     this('filters').forEach(function(el, i) {
-      if (location.hash === el.href) {
-        this('selected', true);
-        currentFilter = el.filter;
-      }
-      else {
-        this('selected', false);
-      }
+      var cond = (location.hash === el.href);
+      this('selected', cond);
+      if (cond) currentFilter = el.filter;
     });
     // Update todo items on route change
     jtmpl('#todoapp').trigger('change', 'todos');
@@ -96,11 +92,12 @@
       click: {
         '.destroy': destroy,
         '#clear-completed': function() {
-          for (var i = this('todos').len - 1; i >= 0; i--) {
-            if (this('todos')(i)('completed')) {
-              this('todos').splice(i, 1);
-            }
-          }
+          this(
+            'todos',
+            this('todos').filter(function() {
+              return !this('completed');
+            })
+          );
         }
       },
 
@@ -120,12 +117,9 @@
     __init__: function() {
       var routeChange = hashchange.bind(this);
       window.addEventListener('hashchange', routeChange);
-      // Wait jtmpl to initialize the DOM
-      setTimeout(function() {
-        retrieve();
-        routeChange();
-        setupPersistence();
-      });
+      retrieve();
+      routeChange();
+      setupPersistence();
     },
 
     //// Fields
